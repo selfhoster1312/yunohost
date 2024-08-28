@@ -462,6 +462,11 @@ ynh_spawn_app_shell() {
 # usage: ynh_add_swap --size=SWAP in Mb
 # | arg: -s, --size= - Amount of SWAP to add in Mb.
 ynh_add_swap () {
+  if [ "$(systemd-detect-virt)" != "none" ]; then
+    ynh_print_warn --message="You are inside a container/VM. swap will not be added, but that can cause troubles for the app $app. Please make sure you have enough RAM available."
+    return
+  fi
+
 	# Declare an array to define the options of this helper.
 	declare -Ar args_array=( [s]=size= )
 	local size
@@ -541,12 +546,15 @@ ynh_del_swap () {
 
 # Check if the device of the main mountpoint "/" is an SD card
 #
-# Note: does not work if used inside LXD, as in package_checker.
-#
 # [internal]
 #
 # return 0 if it's an SD card, else 1
 ynh_is_main_device_a_sd_card () {
+  if [ "$(systemd-detect-virt)" != "none" ]; then
+    # Assume virtualization does not take place on SD card
+    return 1
+  fi
+
 	local main_device=$(lsblk --output PKNAME --noheadings $(findmnt / --nofsroot --uniq --output source --noheadings --first-only))
 
 	if echo $main_device | grep --quiet "mmc" && [ $(tail -n1 /sys/block/$main_device/queue/rotational) == "0" ]
